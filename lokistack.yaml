@@ -1,0 +1,25 @@
+apiVersion: loki.grafana.com/v1
+kind: LokiStack
+metadata:
+  name: lokistack-sample
+  namespace: netobserv
+spec:
+  managementState: Managed
+  size: 1x.extra-small
+  storage:
+    schemas:
+      - effectiveDate: "2024-10-11"
+        version: v13
+    secret:
+      name: loki-s3
+      type: s3
+      credentialMode: static
+  storageClassName: <your-storage-class>
+  hashRing:
+    type: memberlist
+  limits:
+    global:
+      queries:
+        queryTimeout: 3m
+  tenants:
+    mode: openshift-network
