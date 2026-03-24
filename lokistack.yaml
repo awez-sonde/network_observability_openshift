@@ -16,7 +16,7 @@ spec:
       name: loki-s3
       type: s3
       credentialMode: static
-  storageClassName: <your-storage-class>
+  storageClassName: gp3-csi
   hashRing:
     type: memberlist
   limits:

@@ -136,6 +136,7 @@ oc new-project minio-storage
 
 The following manifest creates everything in a single apply: a PVC for data persistence, a Secret for credentials, a Deployment running the Minio server, a ClusterIP Service exposing both the API and console ports, and two TLS-terminated Routes.
 
+
 ```yaml
 ---
 kind: PersistentVolumeClaim
@@ -360,7 +361,7 @@ spec:
       name: loki-s3
       type: s3
       credentialMode: static
-  storageClassName: <your-storage-class>
+  storageClassName: gp3-csi
   hashRing:
     type: memberlist
   limits:
@@ -593,7 +594,7 @@ Instead of applying each manifest manually, you can use OpenShift GitOps (ArgoCD
 | 3 | `lokistack.yaml` | LokiStack CR | Requires Loki Operator CRD from wave 0 |
 | 4 | `flowcollector.yaml` | FlowCollector CR | Requires Network Observability Operator CRD from wave 0 |
 
-> **Note:** Waves 3 and 4 depend on CRDs that are installed asynchronously by OLM after the operator Subscriptions are created. The Application's retry policy handles this automatically — ArgoCD will retry until the CRDs become available (typically 2–3 minutes).
+> **Note:** Waves 3 and 4 depend on CRDs that are installed asynchronously by OLM after the operator Subscriptions are created. The `SkipDryRunOnMissingResource=true` sync option is critical here — without it, ArgoCD's pre-sync dry-run rejects unknown resource types before any wave is applied. With this option, ArgoCD skips validation for missing CRDs and the retry policy handles re-syncing until the operators finish installing (typically 2–3 minutes).
 
 ### 5.1 Grant ArgoCD the required permissions
 
@@ -632,6 +633,7 @@ The Application is configured with:
 - **Automated sync** with self-heal and pruning enabled
 - **Retry policy** — up to 10 retries with exponential backoff (30s → 5m) to handle CRD availability delays
 - **Server-side apply** — avoids field-manager conflicts with operator-managed resources
+- **`SkipDryRunOnMissingResource`** — ArgoCD normally dry-runs all resources before syncing any wave. Without this flag, the dry-run fails immediately for LokiStack and FlowCollector because their CRDs don't exist yet (the operators haven't been installed). This option tells ArgoCD to skip validation for unknown resource types and trust the sync-wave ordering to ensure the CRDs will exist by the time those resources are actually applied.
 - **Directory exclude** — the `argocd-application.yaml` file itself is excluded from the sync to prevent self-referencing
 
 ### 5.3 Monitor the sync
