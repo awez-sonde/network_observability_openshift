@@ -294,9 +294,13 @@ oc get routes -n minio-storage
 
 ### 1.4 Create the Loki bucket
 
-Open the Minio console via the `minio-ui` route, log in with `minioadmin / miniopassword`, and create a bucket named **`loki-data`**.
+Open the Minio console via the `minio-ui` route. Log in with `minioadmin` / `miniopassword`:
 
-> **Screenshot:** Minio Object Browser showing the `loki-data` bucket with `index` and `network` folders after LokiStack starts writing — 253.4 MiB across 11,054 objects.
+![Minio login page](images/minio-login.png)
+
+Once logged in, click **Create Bucket**, enter **`loki-data`** as the bucket name, and click **Create Bucket**:
+
+![Creating the loki-data bucket](images/minio-create-bucket.png)
 
 Once Loki begins ingesting flows, you will see two folders appear automatically inside `loki-data`:
 - `index/` — Loki's TSDB index chunks
@@ -361,7 +365,6 @@ spec:
       name: loki-s3
       type: s3
       credentialMode: static
-  storageClassName: gp3-csi
   hashRing:
     type: memberlist
   limits:
