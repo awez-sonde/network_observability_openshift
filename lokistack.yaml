@@ -16,6 +16,7 @@ spec:
       name: loki-s3
       type: s3
       credentialMode: static
+  storageClassName: nfs-client
   hashRing:
     type: memberlist
   limits:

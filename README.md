@@ -365,6 +365,7 @@ spec:
       name: loki-s3
       type: s3
       credentialMode: static
+  storageClassName: nfs-client
   hashRing:
     type: memberlist
   limits:
@@ -616,13 +617,23 @@ This creates a `ClusterRole` and `ClusterRoleBinding` granting the `openshift-gi
 - `loki.grafana.com`: LokiStacks
 - `flows.netobserv.io`: FlowCollectors
 
-### 5.2 Create the ArgoCD Application
+### 5.2 Fork the repo and customize for your cluster
 
-First, edit `argocd-application.yaml` and replace the `repoURL` placeholder with your actual Git repository URL:
+Fork this repository so you have a copy you can tailor to your environment. At a minimum, update the following values in your fork:
+
+| File | Field | What to change |
+|------|-------|---------------|
+| `lokistack.yaml` | `storageClassName` | Set to your cluster's StorageClass (run `oc get sc` to find it). This repo defaults to `nfs-client`. |
+| `argocd-application.yaml` | `repoURL` | Set to your fork's Git URL |
+| `loki-s3-secret.yaml` | `stringData.*` | Update if you changed the Minio credentials |
+
+### 5.3 Create the ArgoCD Application
+
+Once your fork is ready, update the `repoURL` in `argocd-application.yaml` to point to it:
 
 ```yaml
 source:
-  repoURL: https://github.com/<your-org>/network_observability_openshift.git   # ← update this
+  repoURL: https://github.com/<your-fork>/network_observability_openshift.git   # ← your fork
   targetRevision: main
 ```
 
@@ -639,7 +650,7 @@ The Application is configured with:
 - **`SkipDryRunOnMissingResource`** — ArgoCD normally dry-runs all resources before syncing any wave. Without this flag, the dry-run fails immediately for LokiStack and FlowCollector because their CRDs don't exist yet (the operators haven't been installed). This option tells ArgoCD to skip validation for unknown resource types and trust the sync-wave ordering to ensure the CRDs will exist by the time those resources are actually applied.
 - **Directory exclude** — the `argocd-application.yaml` file itself is excluded from the sync to prevent self-referencing
 
-### 5.3 Monitor the sync
+### 5.4 Monitor the sync
 
 ```bash
 oc get applications -n openshift-gitops netobserv-stack
@@ -653,7 +664,7 @@ oc get applications -n openshift-gitops netobserv-stack -o jsonpath='{.status.sy
 
 The Application will show `Synced` and `Healthy` once all waves complete successfully. Expect waves 3–4 to retry a few times while the operators finish installing.
 
-### 5.4 Create the Loki bucket
+### 5.5 Create the Loki bucket
 
 The Minio `loki-data` bucket still needs to be created manually after Minio is running (ArgoCD does not manage Minio bucket creation). Open the Minio console via the `minio-ui` route and create the bucket as described in [Part 1.4](#14-create-the-loki-bucket).
 

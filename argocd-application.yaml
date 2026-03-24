@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/awez-sonde/network_observability_openshift.git
+    repoURL: https://github.com/<your-fork>/network_observability_openshift.git
     targetRevision: main
     path: .
     directory:
