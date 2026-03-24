@@ -2,6 +2,8 @@ apiVersion: flows.netobserv.io/v1beta2
 kind: FlowCollector
 metadata:
   name: cluster
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
 spec:
   namespace: netobserv
   deploymentModel: Service

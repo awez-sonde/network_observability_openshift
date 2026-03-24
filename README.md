@@ -576,6 +576,84 @@ The console plugin ships with pre-configured quick filters accessible from the t
 
 ---
 
+## Part 5 — GitOps deployment with OpenShift GitOps (ArgoCD)
+
+Instead of applying each manifest manually, you can use OpenShift GitOps (ArgoCD) to deploy and manage the entire stack declaratively from this repository. Every manifest in this repo carries an `argocd.argoproj.io/sync-wave` annotation so ArgoCD applies resources in the correct dependency order.
+
+### Sync-wave ordering
+
+| Wave | File | Resources | Purpose |
+|------|------|-----------|---------|
+| 0 | `loki-operator.yaml` | Namespace, Subscription | Loki Operator |
+| 0 | `netobserv-operator.yaml` | Subscription | Network Observability Operator |
+| 0 | `minio.yaml` | Namespace `minio-storage` | Namespace created before Minio workloads |
+| 0 | `loki-s3-secret.yaml` | Namespace `netobserv` | Namespace created before LokiStack workloads |
+| 1 | `minio.yaml` | PVC, Secret, Deployment, Service, Routes | Minio storage backend |
+| 2 | `loki-s3-secret.yaml` | Secret `loki-s3` | S3 credentials for LokiStack |
+| 3 | `lokistack.yaml` | LokiStack CR | Requires Loki Operator CRD from wave 0 |
+| 4 | `flowcollector.yaml` | FlowCollector CR | Requires Network Observability Operator CRD from wave 0 |
+
+> **Note:** Waves 3 and 4 depend on CRDs that are installed asynchronously by OLM after the operator Subscriptions are created. The Application's retry policy handles this automatically — ArgoCD will retry until the CRDs become available (typically 2–3 minutes).
+
+### 5.1 Grant ArgoCD the required permissions
+
+The ArgoCD application controller needs cluster-level permissions to manage namespaces, operator subscriptions, routes, and the custom resources used by this stack. A pre-built RBAC manifest is provided in the **parent directory** of this repo:
+
+```bash
+oc apply -f argocd-netobserv-rbac.yaml
+```
+
+This creates a `ClusterRole` and `ClusterRoleBinding` granting the `openshift-gitops-argocd-application-controller` service account (in `openshift-gitops`) access to all required API groups:
+
+- Core resources: Namespaces, Secrets, Services, PVCs
+- `apps`: Deployments
+- `route.openshift.io`: Routes
+- `operators.coreos.com`: Subscriptions, OperatorGroups, InstallPlans
+- `loki.grafana.com`: LokiStacks
+- `flows.netobserv.io`: FlowCollectors
+
+### 5.2 Create the ArgoCD Application
+
+First, edit `argocd-application.yaml` and replace the `repoURL` placeholder with your actual Git repository URL:
+
+```yaml
+source:
+  repoURL: https://github.com/<your-org>/network_observability_openshift.git   # ← update this
+  targetRevision: main
+```
+
+Then apply it:
+
+```bash
+oc apply -f argocd-application.yaml
+```
+
+The Application is configured with:
+- **Automated sync** with self-heal and pruning enabled
+- **Retry policy** — up to 10 retries with exponential backoff (30s → 5m) to handle CRD availability delays
+- **Server-side apply** — avoids field-manager conflicts with operator-managed resources
+- **Directory exclude** — the `argocd-application.yaml` file itself is excluded from the sync to prevent self-referencing
+
+### 5.3 Monitor the sync
+
+```bash
+oc get applications -n openshift-gitops netobserv-stack
+```
+
+Watch the individual resources progress through each wave:
+
+```bash
+oc get applications -n openshift-gitops netobserv-stack -o jsonpath='{.status.sync.status}'
+```
+
+The Application will show `Synced` and `Healthy` once all waves complete successfully. Expect waves 3–4 to retry a few times while the operators finish installing.
+
+### 5.4 Create the Loki bucket
+
+The Minio `loki-data` bucket still needs to be created manually after Minio is running (ArgoCD does not manage Minio bucket creation). Open the Minio console via the `minio-ui` route and create the bucket as described in [Part 1.4](#14-create-the-loki-bucket).
+
+---
+
 ## Troubleshooting
 
 **LokiStack warning: `StorageNeedsSchemaUpdate`**

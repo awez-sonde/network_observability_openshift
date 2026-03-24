@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: netobserv-stack
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/<your-org>/network_observability_openshift.git
+    targetRevision: main
+    path: .
+    directory:
+      recurse: false
+      exclude: argocd-application.yaml
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true

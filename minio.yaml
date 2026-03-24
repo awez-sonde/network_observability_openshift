@@ -1,9 +1,18 @@
 ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minio-storage
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: minio-pvc
   namespace: minio-storage
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   accessModes:
     - ReadWriteOnce
@@ -17,6 +26,8 @@ apiVersion: v1
 metadata:
   name: minio-secret
   namespace: minio-storage
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 stringData:
   minio_root_user: minioadmin
   minio_root_password: miniopassword
@@ -26,6 +37,8 @@ apiVersion: apps/v1
 metadata:
   name: minio
   namespace: minio-storage
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   replicas: 1
   selector:
@@ -90,6 +103,8 @@ apiVersion: v1
 metadata:
   name: minio-svc
   namespace: minio-storage
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   selector:
     app: minio
@@ -107,6 +122,8 @@ apiVersion: route.openshift.io/v1
 metadata:
   name: minio-api
   namespace: minio-storage
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   to:
     kind: Service
@@ -123,6 +140,8 @@ apiVersion: route.openshift.io/v1
 metadata:
   name: minio-ui
   namespace: minio-storage
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   to:
     kind: Service

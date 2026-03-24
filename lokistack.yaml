@@ -3,6 +3,8 @@ kind: LokiStack
 metadata:
   name: lokistack-sample
   namespace: netobserv
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
 spec:
   managementState: Managed
   size: 1x.extra-small
