@@ -37,10 +37,92 @@ This guide walks through deploying end-to-end network observability on an OpenSh
 
 ## Prerequisites
 
-Before starting, verify the required operators are installed and healthy:
+- An OpenShift 4.21+ cluster with `cluster-admin` access
+- `oc` CLI logged in to the cluster
+- A StorageClass capable of provisioning `ReadWriteOnce` PVCs — Minio uses a PVC to persist object data (S3 buckets and their contents) across pod restarts, and LokiStack also requires PVCs for its stateful components
+
+---
+
+## Operator installation
+
+Two operators are required. Install them before deploying any workloads.
+
+### Install the Loki Operator
+
+The Loki Operator is installed in the `openshift-operators-redhat` namespace, which is the recommended namespace for Red Hat-provided operators that need cluster-wide scope.
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-operators-redhat
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-operators-redhat-og
+  namespace: openshift-operators-redhat
+spec: {}
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: loki-operator
+  namespace: openshift-operators-redhat
+spec:
+  channel: stable-6.4
+  installPlanApproval: Automatic
+  name: loki-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+```
+
+Apply with:
 
 ```bash
-oc get csv
+oc apply -f loki-operator.yaml
+```
+
+### Install the Network Observability Operator
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-netobserv-operator
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: netobserv-og
+  namespace: openshift-netobserv-operator
+spec: {}
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: netobserv-operator
+  namespace: openshift-netobserv-operator
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: netobserv-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+```
+
+Apply with:
+
+```bash
+oc apply -f netobserv-operator.yaml
+```
+
+### Verify all operators are healthy
+
+Wait a couple of minutes for the operators to install, then confirm they all reach the `Succeeded` phase:
+
+```bash
+oc get csv -A | grep -E 'loki|netobserv'
 ```
 
 Expected output:
@@ -51,12 +133,7 @@ loki-operator.v6.4.3                     Loki Operator          6.4.3     Succee
 network-observability-operator.v1.11.0   Network Observability  1.11.0    Succeeded
 ```
 
-Also confirm the LVMS storage operator is available, as it provides the `lvms-vg1` StorageClass used by both Minio and LokiStack:
-
-```bash
-oc get sub -A | grep lvms
-# openshift-storage   lvms-operator   lvms-operator   redhat-operators   stable-4.21
-```
+> **Tip:** You can also verify from the OpenShift console under **Operators → Installed Operators**. Both should show a green checkmark.
 
 ---
 
@@ -298,7 +375,7 @@ spec:
       name: loki-s3
       type: s3
       credentialMode: static
-  storageClassName: lvms-vg1
+  storageClassName: <your-storage-class>
   hashRing:
     type: memberlist
   limits:
